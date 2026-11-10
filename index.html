@@ -2,101 +2,108 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pixel Minesweeper</title>
+<title>Pixel Minesweeper — Improved</title>
 <style>
-body { background: #000; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; }
-canvas { border: 4px solid #555; image-rendering: pixelated; }
+body { background: #1a1a1a; margin: 0; display: flex; justify-content: center; align-items: center; height: 100vh; image-rendering: pixelated; font-family: monospace; }
+canvas { border: 6px solid #555; image-rendering: pixelated; }
 </style>
 </head>
 <body>
-<canvas id="game" width="320" height="320"></canvas>
+<canvas id="game" width="400" height="440"></canvas>
 <script>
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 ctx.imageSmoothingEnabled = false;
-const size = 10;
-const cell = 32;
-let board = [];
-let revealed = [];
-let flags = [];
-let mines = 15;
-let gameOver = false;
-let won = false;
+const SIZE = 10, CELL = 40, MINES = 15;
+let board, revealed, flags, gameOver, won, minesLeft;
+
+const numColors = ['','#00f','#0a0','#f00','#00a','#a00','#0aa','#000','#555'];
 
 function init() {
-  board = Array(size).fill().map(() => Array(size).fill(0));
-  revealed = Array(size).fill().map(() => Array(size).fill(false));
-  flags = Array(size).fill().map(() => Array(size).fill(false));
-  // Place mines
+  board = Array(SIZE).fill().map(() => Array(SIZE).fill(0));
+  revealed = Array(SIZE).fill().map(() => Array(SIZE).fill(false));
+  flags = Array(SIZE).fill().map(() => Array(SIZE).fill(false));
+  gameOver = won = false;
+  minesLeft = MINES;
   let placed = 0;
-  while (placed < mines) {
-    const x = Math.floor(Math.random()*size);
-    const y = Math.floor(Math.random()*size);
-    if (board[y][x] !== -1) {
-      board[y][x] = -1;
-      placed++;
-    }
+  while (placed < MINES) {
+    const x = Math.floor(Math.random()*SIZE);
+    const y = Math.floor(Math.random()*SIZE);
+    if (board[y][x] !== -1) { board[y][x] = -1; placed++; }
   }
-  // Numbers
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
+  for (let y=0; y<SIZE; y++) {
+    for (let x=0; x<SIZE; x++) {
       if (board[y][x] === -1) continue;
-      let count = 0;
-      for (let dy = -1; dy <= 1; dy++) {
-        for (let dx = -1; dx <= 1; dx++) {
-          const ny = y+dy, nx = x+dx;
-          if (ny>=0 && ny<size && nx>=0 && nx<size && board[ny][nx] === -1) count++;
-        }
+      let c = 0;
+      for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) {
+        const ny=y+dy, nx=x+dx;
+        if (ny>=0&&ny<SIZE&&nx>=0&&nx<SIZE&&board[ny][nx]===-1) c++;
       }
-      board[y][x] = count;
+      board[y][x] = c;
     }
   }
 }
 
 function draw() {
   ctx.fillStyle = '#222';
-  ctx.fillRect(0,0,320,320);
-  for (let y = 0; y < size; y++) {
-    for (let x = 0; x < size; x++) {
-      const px = x*cell, py = y*cell;
+  ctx.fillRect(0,0,400,440);
+  ctx.fillStyle = '#ccc';
+  ctx.font = 'bold 18px monospace';
+  ctx.fillText('Mines: '+minesLeft, 10, 28);
+  ctx.fillText(won ? 'WIN!' : gameOver ? 'LOSE' : 'Playing', 280, 28);
+
+  for (let y=0; y<SIZE; y++) {
+    for (let x=0; x<SIZE; x++) {
+      const px = x*CELL, py = y*CELL + 40;
       if (revealed[y][x]) {
-        ctx.fillStyle = '#555';
-        ctx.fillRect(px, py, cell-1, cell-1);
+        ctx.fillStyle = board[y][x] === -1 ? '#600' : '#444';
+        ctx.fillRect(px, py, CELL-1, CELL-1);
         if (board[y][x] === -1) {
           ctx.fillStyle = '#f00';
-          ctx.fillRect(px+8, py+8, 16, 16);
+          ctx.beginPath();
+          ctx.arc(px+CELL/2, py+CELL/2, 10, 0, Math.PI*2);
+          ctx.fill();
         } else if (board[y][x] > 0) {
-          ctx.fillStyle = '#0ff';
-          ctx.font = '16px monospace';
-          ctx.fillText(board[y][x], px+10, py+22);
+          ctx.fillStyle = numColors[board[y][x]];
+          ctx.font = 'bold 18px monospace';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText(board[y][x], px+CELL/2, py+CELL/2);
         }
       } else {
-        ctx.fillStyle = '#888';
-        ctx.fillRect(px, py, cell-1, cell-1);
+        ctx.fillStyle = '#777';
+        ctx.fillRect(px, py, CELL-1, CELL-1);
+        ctx.fillStyle = '#999';
+        ctx.fillRect(px+2, py+2, CELL-6, 4);
         if (flags[y][x]) {
-          ctx.fillStyle = '#f00';
-          ctx.fillRect(px+10, py+8, 12, 16);
+          ctx.fillStyle = '#f44';
+          ctx.fillRect(px+12, py+8, 8, 16);
+          ctx.fillStyle = '#000';
+          ctx.fillRect(px+20, py+8, 6, 4);
         }
       }
     }
   }
+
   if (gameOver || won) {
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
-    ctx.fillRect(0,0,320,320);
-    ctx.fillStyle = '#fff';
-    ctx.font = '24px monospace';
+    ctx.fillStyle = 'rgba(0,0,0,0.55)';
+    ctx.fillRect(0,40,400,400);
+    ctx.fillStyle = won ? '#0f0' : '#f44';
+    ctx.font = 'bold 32px monospace';
     ctx.textAlign = 'center';
-    ctx.fillText(won ? 'You Win!' : 'Game Over', 160, 160);
+    ctx.fillText(won ? 'YOU WIN!' : 'GAME OVER', 200, 220);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px monospace';
+    ctx.fillText('Click to restart', 200, 260);
   }
 }
 
-function reveal(x, y) {
-  if (x<0 || x>=size || y<0 || y>=size || revealed[y][x] || flags[y][x]) return;
+function reveal(x,y) {
+  if (x<0||x>=SIZE||y<0||y>=SIZE||revealed[y][x]||flags[y][x]) return;
   revealed[y][x] = true;
   if (board[y][x] === -1) {
     gameOver = true;
-    // Reveal all mines
-    for (let yy=0; yy<size; yy++) for (let xx=0; xx<size; xx++) if (board[yy][xx]===-1) revealed[yy][xx]=true;
+    for (let yy=0; yy<SIZE; yy++) for (let xx=0; xx<SIZE; xx++) if (board[yy][xx]===-1) revealed[yy][xx]=true;
   } else if (board[y][x] === 0) {
     for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) reveal(x+dx, y+dy);
   }
@@ -105,16 +112,16 @@ function reveal(x, y) {
 
 function checkWin() {
   let safe = 0;
-  for (let y=0; y<size; y++) for (let x=0; x<size; x++) if (board[y][x] !== -1 && revealed[y][x]) safe++;
-  if (safe === size*size - mines) won = true;
+  for (let y=0; y<SIZE; y++) for (let x=0; x<SIZE; x++) if (board[y][x] !== -1 && revealed[y][x]) safe++;
+  if (safe === SIZE*SIZE - MINES) won = true;
 }
 
 canvas.addEventListener('click', e => {
-  if (gameOver || won) { init(); gameOver=false; won=false; draw(); return; }
+  if (gameOver || won) { init(); draw(); return; }
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / cell);
-  const y = Math.floor((e.clientY - rect.top) / cell);
-  reveal(x, y);
+  const x = Math.floor((e.clientX - rect.left) / CELL);
+  const y = Math.floor((e.clientY - rect.top - 40) / CELL);
+  if (y >= 0) reveal(x, y);
   draw();
 });
 
@@ -122,9 +129,12 @@ canvas.addEventListener('contextmenu', e => {
   e.preventDefault();
   if (gameOver || won) return;
   const rect = canvas.getBoundingClientRect();
-  const x = Math.floor((e.clientX - rect.left) / cell);
-  const y = Math.floor((e.clientY - rect.top) / cell);
-  if (!revealed[y][x]) flags[y][x] = !flags[y][x];
+  const x = Math.floor((e.clientX - rect.left) / CELL);
+  const y = Math.floor((e.clientY - rect.top - 40) / CELL);
+  if (y >= 0 && !revealed[y][x]) {
+    flags[y][x] = !flags[y][x];
+    minesLeft += flags[y][x] ? -1 : 1;
+  }
   draw();
 });
 
